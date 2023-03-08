@@ -251,9 +251,61 @@ if ($action == 'updateMask') {
  */
 
 $form = new Form($db);
+require_once '../class/ModelLineInter.php';
+$formconfirm='';
 
 $help_url = '';
 $page_name = "EasyInterventionModelsSetup";
+// Confirm deletion of line
+if ($action == 'ask_deletemodel') {
+	$id = $_GET ['id'];
+	$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"] . '?id=' . $id, $langs->trans('DeleteInterventionModel'), $langs->trans('ConfirmDeleteInterventionModel'), 'confirm_deletemodel', '', 0, 1);
+}
+//delete line
+if ($action == 'confirm_deletemodel' && $_GET['confirm'] == 'yes') {
+	$id = $_GET ['id'];
+	$model = ModelLineInter::getById($id, $db);
+	$result = $model->delete();
+	header("Location: " . $_SERVER["PHP_SELF"]);
+	exit;
+
+}
+//save line
+if (GETPOSTISSET("save")) {
+	$newName = filter_var($_POST["name-modify"], FILTER_SANITIZE_STRING);
+	$newContent = $_POST["content-modify"];
+	$idModelUpdate = filter_var($_POST["id"], FILTER_SANITIZE_NUMBER_INT);
+
+
+	if (!empty($idModelUpdate)) {
+		$modelForUpdate = ModelLineInter::getById($idModelUpdate, $db);
+
+		if (!empty($modelForUpdate)) {
+
+			if (isset($newName)) {
+				$modelForUpdate->name = $newName;
+				$modelForUpdate->content = $newContent;
+
+				$modelForUpdate->update();
+			} else {
+				setEventMessage('The model name cannot be empty.','errors');
+
+			}
+		}
+	}
+}
+//add line
+if (GETPOSTISSET('addmodel')) {
+	$newName = filter_var($_POST['name-add'], FILTER_SANITIZE_STRING);
+	$newContent = $_POST['content-add'];
+	if (!empty($newName)) {
+		$newModel = new ModelLineInter($db);
+		$newModel->setModel($newName, $newContent);
+		$newModel->create();
+	} else {
+		setEventMessage('The model name cannot be empty.','errors');
+	}
+}
 
 llxHeader('', $langs->trans($page_name), $help_url);
 
@@ -378,84 +430,41 @@ if ($action == 'edit') {
 			print $formSetup->generateOutput();
 		}
 	} else {
-		if (!empty($arrayofparameters)) {
-			print '<table class="noborder centpercent">';
-			print '<tr class="liste_titre"><td class="titlefield">'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
 
-			foreach ($arrayofparameters as $constname => $val) {
-				if ($val['enabled']==1) {
-					$setupnotempty++;
-					print '<tr class="oddeven"><td>';
-					$tooltiphelp = (($langs->trans($constname . 'Tooltip') != $constname . 'Tooltip') ? $langs->trans($constname . 'Tooltip') : '');
-					print $form->textwithpicto($langs->trans($constname), $tooltiphelp);
-					print '</td><td>';
+		$form = new Form($db);
 
-					if ($val['type'] == 'textarea') {
-						print dol_nl2br($conf->global->{$constname});
-					} elseif ($val['type']== 'html') {
-						print  $conf->global->{$constname};
-					} elseif ($val['type'] == 'yesno') {
-						print ajax_constantonoff($constname);
-					} elseif (preg_match('/emailtemplate:/', $val['type'])) {
-						include_once DOL_DOCUMENT_ROOT . '/core/class/html.formmail.class.php';
-						$formmail = new FormMail($db);
 
-						$tmp = explode(':', $val['type']);
 
-						$template = $formmail->getEMailTemplate($db, $tmp[1], $user, $langs, $conf->global->{$constname});
-						if ($template<0) {
-							setEventMessages(null, $formmail->errors, 'errors');
-						}
-						print $langs->trans($template->label);
-					} elseif (preg_match('/category:/', $val['type'])) {
-						$c = new Categorie($db);
-						$result = $c->fetch($conf->global->{$constname});
-						if ($result < 0) {
-							setEventMessages(null, $c->errors, 'errors');
-						} elseif ($result > 0 ) {
-							$ways = $c->print_all_ways(' &gt;&gt; ', 'none', 0, 1); // $ways[0] = "ccc2 >> ccc2a >> ccc2a1" with html formated text
-							$toprint = array();
-							foreach ($ways as $way) {
-								$toprint[] = '<li class="select2-search-choice-dolibarr noborderoncategories"' . ($c->color ? ' style="background: #' . $c->color . ';"' : ' style="background: #bbb"') . '>' . $way . '</li>';
-							}
-							print '<div class="select2-container-multi-dolibarr" style="width: 90%;"><ul class="select2-choices-dolibarr">' . implode(' ', $toprint) . '</ul></div>';
-						}
-					} elseif (preg_match('/thirdparty_type/', $val['type'])) {
-						if ($conf->global->{$constname}==2) {
-							print $langs->trans("Prospect");
-						} elseif ($conf->global->{$constname}==3) {
-							print $langs->trans("ProspectCustomer");
-						} elseif ($conf->global->{$constname}==1) {
-							print $langs->trans("Customer");
-						} elseif ($conf->global->{$constname}==0) {
-							print $langs->trans("NorProspectNorCustomer");
-						}
-					} elseif ($val['type'] == 'product') {
-						$product = new Product($db);
-						$resprod = $product->fetch($conf->global->{$constname});
-						if ($resprod > 0) {
-							print $product->ref;
-						} elseif ($resprod < 0) {
-							setEventMessages(null, $product->errors, "errors");
-						}
-					} else {
-						print $conf->global->{$constname};
-					}
-					print '</td></tr>';
-				}
-			}
 
-			print '</table>';
-		}
+
+
+
+
+		print '<div class="fichecenter"><div class="fichethirdleft">';
+
+
+		print '</div><div class="fichetwothirdright">';
+
+
+		$NBMAX = $conf->global->MAIN_SIZE_SHORTLIST_LIMIT;
+		$max = $conf->global->MAIN_SIZE_SHORTLIST_LIMIT;
+
+		$action = GETPOST('action', 'alpha');
+		print '</div></div>';
+		print '<form action="' . $_SERVER["PHP_SELF"] . '" name="addinter" method="post">';
+		print '<input type="hidden" name="token" value="' . newToken() . '">';
+		print "<div class='config_modellineinter'>";
+
+		print ModelLineInter::getAllHtml($db);
+		print getFormCreateModel();
+
+		print'</div>';
+		print '</form>';
+
+		print $formconfirm;
+
 	}
 
-	if ($setupnotempty) {
-		print '<div class="tabsAction">';
-		print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=edit&token='.newToken().'">'.$langs->trans("Modify").'</a>';
-		print '</div>';
-	} else {
-		print '<br>'.$langs->trans("NothingToSetup");
-	}
 }
 
 
@@ -722,12 +731,34 @@ foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
 	}
 }
 
-if (empty($setupnotempty)) {
-	print '<br>'.$langs->trans("NothingToSetup");
-}
+
 
 // Page end
 print dol_get_fiche_end();
 
 llxFooter();
 $db->close();
+function getFormCreateModel()
+{
+	global $langs;
+	$html = '<table><tr class="titre">
+			<td class="nobordernopadding widthpictotitle valignmiddle col-picto">
+			<span class="fas fa-plus  em080 infobox-contrat valignmiddle widthpictotitle pictotitle" style=""></span></td>
+			<td class="nobordernopadding valignmiddle col-title"><div class="titre inline-block">Créer modele de ligne d intervention</div></td></tr>';
+
+	// Adding DolEditor for the input area of name and content
+	require_once DOL_DOCUMENT_ROOT . '/core/class/doleditor.class.php';
+	$doleditorName = new DolEditor('name-add', '', '', 200, 'dolibarr_notes', 'In', false, false, false, ROWS_2, '50%');
+	$doleditorContent = new DolEditor('content-add', '', '', 200, 'dolibarr_notes', 'In', false, false, false, ROWS_2, '50%');
+
+	// Add table layout with titles for the input fields
+	$html .= '<tr><td colspan="2" class="titlefield center">' . $langs->trans('Name') . '</td></tr>';
+	$html .= '<tr><td colspan="2" class="center">' . $doleditorName->Create(1) . '</td></tr>';
+	$html .= '<tr><td colspan="2" class="titlefield center">' . $langs->trans('Content') . '</td></tr>';
+	$html .= '<tr><td colspan="2" class="center">' . $doleditorContent->Create(1) . '</td></tr>';
+
+	// Add submit button
+	$html .= '<tr><td colspan="2" class="center"><input type="submit" class="button button-add" style="background: var(--butactionbg); color: #FFF !important; border-radius: 3px; border-collapse: collapse; border: none;" value="Ajouter" name="addmodel"></td></tr>';
+	$html .= '</table>';
+	return $html;
+}
