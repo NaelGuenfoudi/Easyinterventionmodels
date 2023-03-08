@@ -98,7 +98,6 @@ class ModelLineInter
 	{
 
 		$sql = "UPDATE " . MAIN_DB_PREFIX . self::table_name . " SET name='" . $this->name . "', content='" . $this->content . "' WHERE rowid=" . (int)$this->id;
-		print $sql;
 		$resql = $this->db->query($sql);
 
 
